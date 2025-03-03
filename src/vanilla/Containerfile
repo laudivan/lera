@@ -1,5 +1,45 @@
-FROM alpine
+FROM alpine:3.20 AS base
 
+ARG JAVA=https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz
 
+ADD $JAVA /opt
 
+RUN tar xzf jdk-21_linux-x64_bin.tar.gz
+    
+FROM alpine:latest
 
+USER 33333:33333
+
+ARG MINECRAFT_SERVER_URL=https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
+
+ENV APP_DIR=/app \
+    DATA_DIR=/app/data \
+    JAVA_HOME=/app/java \
+    JAVA_MEMORY_START=1024M \
+    JAVA_MEMORY=1024M \
+    EULA=false
+    
+ADD --chown=33333:33333 \
+    --checksum=sha256:1066970b09e9c671844572291c4a871cc1ac2b85838bf7004fa0e778e10f1358 \
+    $MINECRAFT_SERVER_URL /app/server.jar
+
+ADD --chown=33333:33333 \
+    --chmod=500 \
+    --checksum=sha256:67426f57e18e6fa192d6f3a54442465b24b290ca4a392b6a75bb4c9884292795 \
+    startup.sh /app/data/startup.sh
+
+COPY --FROM=base \
+     --chown=33333:33333 \
+     /opt/jdk-21.0.6 $JAVA_HOME
+
+COPY --FROM=base \
+     --chown=33333:33333 \
+     /usr/lib/jvm/java-17-openjdk $JAVA_HOME
+
+VOLUME $DATA_DIR
+
+WORKDIR /app/data
+
+EXPOSE 25565
+
+ENTRYPOINT [ "/app/data/startup.sh" ]
