@@ -1,45 +1,60 @@
-FROM alpine:3.20 AS base
+ARG BASE_IMAGE=alpine:3.20
 
-ARG JAVA=https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz
+ARG JAVA_VERSION=21
 
-ADD $JAVA /opt
+ARG JAVA_DIR=/jdk-21.0.6
 
-RUN tar xzf jdk-21_linux-x64_bin.tar.gz
+FROM ${BASE_IMAGE} AS getting_java
+
+ENV JAVA=https://download.oracle.com/java/21/latest/jdk-21_linux-x64_bin.tar.gz
+
+RUN apk add curl && \
+    curl --progress-bar --output - $JAVA | tar xzf -
     
-FROM alpine:latest
+##
+FROM ${BASE_IMAGE}
+
+LABEL AUTHOR Laudivan Almeida
+LABEL EMAIL laudivan@live.com
+LABEL DESCRIPTION Minecraft Server Template \
+    for me and my kids
+
+ARG \
+    MINECRAFT_SERVER_URL=https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar\
+    SERVER_PORT=25565\
+    APP_DIR=/app
+
+ENV \
+    DATA_DIR=${APP_DIR}/data\
+    JAVA_HOME=${APP_DIR}/java\
+    JAVA_MEMORY_START=1024M\
+    JAVA_MEMORY=1024M\
+    SERVER_ID="LERA's Minecraft Vanilla Server"\
+    BONUS_CHEST=false\
+    SAFE_MODE=false\
+    EULA=false
+    
+ADD \
+    --chown=33333:33333 \
+    --checksum=sha256:1066970b09e9c671844572291c4a871cc1ac2b85838bf7004fa0e778e10f1358 \
+    $MINECRAFT_SERVER_URL ${APP_DIR}/server.jar
+
+ADD \
+    --chown=33333:33333 \
+    --chmod=500 \
+    startup.sh ${DATA_DIR}/startup.sh
+
+COPY \
+    --chown=33333:33333 \
+    --from=getting_java \
+    ${JAVA_DIR} ${APP_DIR}/java
 
 USER 33333:33333
 
-ARG MINECRAFT_SERVER_URL=https://piston-data.mojang.com/v1/objects/4707d00eb834b446575d89a61a11b5d548d8c001/server.jar
-
-ENV APP_DIR=/app \
-    DATA_DIR=/app/data \
-    JAVA_HOME=/app/java \
-    JAVA_MEMORY_START=1024M \
-    JAVA_MEMORY=1024M \
-    EULA=false
-    
-ADD --chown=33333:33333 \
-    --checksum=sha256:1066970b09e9c671844572291c4a871cc1ac2b85838bf7004fa0e778e10f1358 \
-    $MINECRAFT_SERVER_URL /app/server.jar
-
-ADD --chown=33333:33333 \
-    --chmod=500 \
-    --checksum=sha256:67426f57e18e6fa192d6f3a54442465b24b290ca4a392b6a75bb4c9884292795 \
-    startup.sh /app/data/startup.sh
-
-COPY --FROM=base \
-     --chown=33333:33333 \
-     /opt/jdk-21.0.6 $JAVA_HOME
-
-COPY --FROM=base \
-     --chown=33333:33333 \
-     /usr/lib/jvm/java-17-openjdk $JAVA_HOME
-
 VOLUME $DATA_DIR
 
-WORKDIR /app/data
+WORKDIR ${DATA_DIR}
 
-EXPOSE 25565
+EXPOSE ${SERVER_PORT}
 
-ENTRYPOINT [ "/app/data/startup.sh" ]
+ENTRYPOINT [ "${APP_DIR}/startup.sh" ]

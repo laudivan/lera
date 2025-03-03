@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN" name="minecraft">
+    <Appenders>
+        <Console name="STDOUT" target="SYSTEM_OUT">
+            <PatternLayout pattern="%m%n" />
+        </Console>
+        <Syslog name="RFC5424" format="RFC5424" host="localhost" port="514" protocol="UDP"
+            appName="minecraft" includeMDC="true" facility="USER" newLine="true" messageId="info"
+            id="minecraft" />
+    </Appenders>
+    <Loggers>
+        <Root level="info">
+            <AppenderRef ref="STDOUT" />
+            <AppenderRef ref="RFC5424" />
+        </Root>
+    </Loggers>
+</Configuration>
