@@ -18,12 +18,12 @@ FROM build AS prod
 
 LABEL org.opencontainers.image.title "LERA's Minecraft Vanilla Server"
 LABEL org.opencontainers.image.authors "Laudivan Almeida <laudivan@live.com>"
-LABEL org.opencontainers.image.version 0
-LABEL org.opencontainers.image.revision 0.1
+LABEL org.opencontainers.image.version "1.21.4"
+LABEL org.opencontainers.image.revision "0.1"
 LABEL org.opencontainers.image.license "MIT"
 LABEL org.opencontainers.image.description "Minecraft Server Template for me and my kids"
 LABEL org.opencontainers.image.created "2025-03-03T18:21:00Z"
-LABEL org.opencontainers.image.source ""
+LABEL org.opencontainers.image.source "https://github.com/laudivan/lera/tree/main/vanilla"
 
 EXPOSE 25565
 EXPOSE 25575
