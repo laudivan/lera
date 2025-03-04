@@ -1,0 +1,24 @@
+services:
+  vanilla:
+    image: lera-minecraft-server:latest
+    restart: always
+    ports:
+      - "25565:25565"
+    volumes:
+      - "data:/data:rw"
+    environment:
+      - EULA=true
+    networks:
+      - default
+
+volumes:
+  data:
+    external: true
+    name: lera-minecraft-server-data
+
+networks:
+  default:
+    {
+      name: lera
+    }
+      

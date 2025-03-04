@@ -1,5 +1,5 @@
 TOOL=podman
-TAG=lera-minecraft-server
+TAG=lera-minecraft-server:latest
 SERVER_TYPE=vanilla
 
 all: build run
@@ -16,17 +16,19 @@ build-podman:
 build-docker:
 	cd $(SERVER_TYPE) && \
 	docker image build \
-		--file Dockerfile \
 		--no-cache \
-		--tag $(TAG)
+		--tag $(TAG) \
+		--file Containerfile \
+		.
 
 run: run-$(TOOL)
 
 run-podman:
 	podman container run \
 		--name lera-minecraft-server-testing \
+		--detach \
 		--rmi \
-		--volume=${MINECRAFT_PATH}:/app/data \
+		--volume=lera-minecraft-server-data:/data \
 		--publish-all \
 		--read-only \
 		--replace \
@@ -36,8 +38,9 @@ run-podman:
 run-docker:
 	docker container run \
 		--name lera-minecraft-server-testing \
+		--detach \
 		--rmi \
-		--volume=${MINECRAFT_PATH}:/app/data \
+		--volume=lera-minecraft-server-data:/app/data \
 		--publish-all \
 		--read-only \
 		--replace \
