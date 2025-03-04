@@ -9,7 +9,7 @@ build: build-$(TOOL)
 build-podman:
 	cd $(SERVER_TYPE) && \
 	podman image build \
-		--file Containerfile \
+		--file Dockerfile \
 		--no-cache \
 		--tag $(TAG)	
 
@@ -18,7 +18,6 @@ build-docker:
 	docker image build \
 		--no-cache \
 		--tag $(TAG) \
-		--file Containerfile \
 		.
 
 run: run-$(TOOL)
