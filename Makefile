@@ -1,5 +1,6 @@
 TOOL=podman
-TAG=lera-minecraft-server:latest
+IMAGE=lera-minecraft-server
+TAG=1.21.4
 SERVER_TYPE=vanilla
 
 all: build run
@@ -11,13 +12,12 @@ build-podman:
 	podman image build \
 		--file Dockerfile \
 		--no-cache \
-		--tag $(TAG)	
+		--tag $(IMAGE):$(TAG)	
 
 build-docker:
 	cd $(SERVER_TYPE) && \
 	docker image build \
-		--no-cache \
-		--tag $(TAG) \
+		--tag $(IMAGE):$(TAG) \
 		.
 
 run: run-$(TOOL)
@@ -32,7 +32,7 @@ run-podman:
 		--read-only \
 		--replace \
 		--env=EULA=true \
-		$(TAG)
+		$(IMAGE):$(TAG)
 
 run-docker:
 	docker container run \
@@ -44,4 +44,9 @@ run-docker:
 		--read-only \
 		--replace \
 		--env=EULA=true \
-		$(TAG)
+		$(IMAGE):$(TAG)
+
+push-docker: build-docker
+	docker login
+	docker image tag $(IMAGE):$(TAG) laudivanfreire/$(IMAGE):$(TAG)
+	docker push laudivanfreire/$(IMAGE):$(TAG)

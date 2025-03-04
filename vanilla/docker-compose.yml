@@ -1,6 +1,6 @@
 services:
   vanilla:
-    image: lera-minecraft-server:latest
+    image: laudivanfreire/lera-minecraft-server:latest
     restart: always
     ports:
       - "25565:25565"
@@ -18,7 +18,7 @@ volumes:
 
 networks:
   default:
-    {
-      name: lera
-    }
+    name: lera
+    external: true
+        
       
