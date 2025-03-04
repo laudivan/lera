@@ -40,7 +40,7 @@ run-docker:
 		--name lera-minecraft-server-testing \
 		--detach \
 		--rmi \
-		--volume=lera-minecraft-server-data:/app/data \
+		--volume=lera-minecraft-server-data:/data \
 		--publish-all \
 		--read-only \
 		--replace \
