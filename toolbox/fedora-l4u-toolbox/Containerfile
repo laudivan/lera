@@ -1,0 +1,90 @@
+FROM registry.fedoraproject.org/fedora-minimal:42 AS base
+
+ARG NAME=fedora-lau-toolbox
+ARG VERSION=42
+LABEL com.github.containers.toolbox="true" \
+      com.redhat.component="$NAME" \
+      name="$NAME" \
+      version="$VERSION" \
+      usage="This image is meant to be used with the toolbox(1) command" \
+      summary="Image for creating Fedora Toolbx containers" \
+      maintainer="Laudivan Almeida <lau@hanuky.space>"
+
+COPY <<-EOT /etc/profile.d/aliases.sh
+alias dnf="sudo dnf --assumeyes"
+alias podman="podman-remote --url 'unix:///run/user/1000/podman/podman.sock'"
+alias google-chrome="flatpak-spawn --host flatpak run  --branch=stable --arch=x86_64 --command=/app/bin/chrome --file-forwarding com.google.Chrome @@u %U @@"
+alias texteditor="flatpak-spawn --host flatpak run --branch=stable --arch=x86_64 --command=gnome-text-editor --file-forwarding org.gnome.TextEditor @@u %U @@"
+EOT
+
+COPY <<-EOT /usr/share/applications/com.google.Chrome.desktop
+[Desktop Entry]
+Version=1.0
+Name=Google Chrome
+GenericName=Web Browser
+Exec=/usr/bin/flatpak-spawn --host /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/chrome --file-forwarding com.google.Chrome @@u %U @@
+StartupNotify=true
+Terminal=false
+Icon=com.google.Chrome
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=application/pdf;application/rdf+xml;application/rss+xml;application/xhtml+xml;application/xhtml_xml;application/xml;image/gif;image/jpeg;image/png;image/webp;text/html;text/xml;x-scheme-handler/http;x-scheme-handler/https;
+Actions=new-window;new-private-window;
+X-Flatpak-Tags=proprietary;
+X-Flatpak=com.google.Chrome
+
+[Desktop Action new-window]
+Name=New Window
+Exec=/usr/bin/flatpak-spawn --host /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/chrome com.google.Chrome
+
+[Desktop Action new-private-window]
+Name=New Incognito Window
+Exec=/usr/bin/flatpak-spawn --host /usr/bin/flatpak run --branch=stable --arch=x86_64 --command=/app/bin/chrome com.google.Chrome --incognito
+EOT
+
+COPY <<-EOT /etc/yum.repos.d/vscode.repo
+[code]
+name=Visual Studio Code
+baseurl=https://packages.microsoft.com/yumrepos/vscode
+enabled=1
+autorefresh=1
+type=rpm-md
+gpgcheck=1
+gpgkey=https://packages.microsoft.com/keys/microsoft.asc
+EOT
+
+RUN 	rpm --import https://packages.microsoft.com/keys/microsoft.asc && \
+    dnf check-update && \
+	dnf --assumeyes install \
+	    code zsh.x86_64 kakoune.x86_64 fzf.x86_64 \
+	    yt-dlp.noarch yt-dlp-bash-completion.noarch yt-dlp-zsh-completion.noarch\
+	    tmux.x86_64 xpanes.noarch tmux-top.x86_64\
+	    ncdu.x86_64 btop.x86_64 fastfetch.x86_64 \
+	    zsh-autosuggestions.noarch \
+	    vim-enhanced.x86_64 \
+	    awesome-vim-colorschemes.noarch \
+	    vim-commentary.noarch \
+	    vim-devicons.noarch \
+	    vim-filesystem.noarch \
+	    vim-nerdtree.noarch \
+	    vim-syntastic.noarch \
+	    vim-syntastic-sh.noarch \
+	    vim-syntastic-zsh.noarch \
+	    vim-syntastic-vim.noarch \
+	    vim-taglist.noarch \
+	    flatpak-spawn.x86_64 \
+	    glibc-langpack-cmn.x86_64 \
+	    glibc-langpack-de.x86_64 \
+	    glibc-langpack-en.x86_64 \
+	    glibc-langpack-es.x86_64 \
+	    glibc-langpack-he.x86_64 \
+	    glibc-langpack-pt.x86_64 \
+	    glibc-langpack-zh.x86_64 \
+	    util-linux.x86_64 \
+	    util-linux-i18n.x86_64 \
+	    ncurses.x86_64 \
+	    sudo.x86_64 \
+	    podman-remote && \
+	dnf clean all
+	
+FROM base

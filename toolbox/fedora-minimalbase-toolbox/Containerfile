@@ -1,0 +1,12 @@
+FROM registry.fedoraproject.org/fedora-minimal:42
+
+ARG NAME=fedora-toolbox
+ARG VERSION=42
+LABEL com.github.containers.toolbox="true" \
+      com.redhat.component="$NAME" \
+      name="$NAME-minimal" \
+      version="$VERSION" \
+      usage="This image is meant to be used with the toolbox(1) command" \
+      summary="Image for creating Fedora Toolbx containers" \
+      maintainer="Laudivan Almeida <lau@hanuky.space>"
+
