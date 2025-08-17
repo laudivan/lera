@@ -1,4 +1,4 @@
-FROM registry.fedoraproject.org/fedora-minimal:42 AS base
+FROM registry.fedoraproject.org/fedora-toolbox:42 AS base
 
 ARG NAME=fedora-lau-toolbox
 ARG VERSION=42
