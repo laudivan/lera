@@ -1,8 +1,8 @@
 FROM fedora:latest AS build
 ARG VERSION=6.7
-ARG BUILD_DT=20250816
+ARG BUILD_DT=20250817
 
-ARG LT_CKSUM=3f3476312283a9151abe08e7e379521b7d29de02571817c9d9122161c08cc73b
+ARG LT_CKSUM=646a3e589b50db033994983e86f0f091c2234ff55249aa0c7c82497d6edce02e
 ARG LB_CKSUM=7e69ec5451bc261cc7844e49e4792a85d7f09c06789ec800fc4a44aec362764e
 
 ENV LT_ZIP=LanguageTool-${BUILD_DT}-snapshot.zip
@@ -38,6 +38,7 @@ ENV GID=1000
 
 LABEL name="LanguageTool Server" \
       version="$VERSION" \
+      build="$BUILD_DT" \
       maintainer="Laudivan Almeida <lau@hanuky.space>"
 
 COPY --chown=${UID}:${GID} --from=build /app /app
