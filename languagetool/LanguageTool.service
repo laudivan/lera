@@ -2,11 +2,15 @@
 Description=LanguageTool Server Container
 
 [Service]
-Environment="IMAGE=docker.io/tiol4u/languagetool-server" "CONTAINER=LanguageTool-Server"
+Environment="IMAGE=docker.io/tiol4u/languagetool-server:latest"\
+            "CONTAINER=LanguageTool-Server"
 Restart=always
-ExecStartPre=/usr/bin/podman image pull $IMAGE
-ExecStart=/usr/bin/podman run --rm --name $CONTAINER --publish 8081:8081 --systemd true $IMAGE
+ExecStart=/usr/bin/podman run --rm --name $CONTAINER \
+            --publish 8081:8081 --systemd true $IMAGE
 ExecStop=/usr/bin/podman stop -t 2 $CONTAINER
+TimeoutStartSec=300
+TimeoutStopSec=5
+After=multi-user.target
 
 [Install]
-WantedBy=local.target
+WantedBy=network.target
