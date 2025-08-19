@@ -1,0 +1,48 @@
+FROM fedora-minimal:latest AS Build
+ARG LanguageToolVersion="6.7"
+ARG LanguageToolBuild="20250817"
+ENV LanguageToolBaseUrl="https://internal1.languagetool.org/snapshots"
+ENV LanguageToolZipFile="LanguageTool-${LanguageToolBuild}-snapshot.zip"
+ENV LanguageToolDir="LanguageTool-${LanguageToolVersion}-SNAPSHOT"
+
+ADD ${LanguageToolBaseUrl}/${LanguageToolZipFile} /build
+ADD https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin /build/
+ADD https://github.com/facebookresearch/fastText.git /build/fastText
+COPY --chmod=700 <<SCRIPT /build/startup.sh
+#!/usr/bin/bash
+
+[[ ! -s server.properties ]] && \
+cat <<EOT > server.properties
+fasttextModel=/app/lid.176.bin
+fasttextBinary=/app/fasttext
+EOT
+
+java -cp /app/languagetool-server.jar org.languagetool.server.HTTPServer \
+     --config server.properties --port 8081 --public --allow-origin "*"
+SCRIPT
+WORKDIR /build/
+RUN dnf --refresh --assumeyes group install c-development && \
+    dnf --assumeyes install unzip && \
+    unzip ${LanguageToolZipFile} && \
+    rm -fr ${LanguageToolDir}/{README.md,CHANGES.md,CHANGES.txt,\
+           testrules.bat,testrules.sh,languagetool-commandline.jar,\
+           languagetool.jar} && \
+    mkdir -p /install/data && \
+    mv ${LanguageToolDir} /install/app && \
+    make --directory=./fastText && \
+    mv lid.176.bin startup.sh ./fastText/fasttext /install/app/
+
+FROM eclipse-temurin:8u462-b08-jre-ubi9-minimal AS languageTool
+ARG BUILD_DATE=
+EXPOSE 8081
+LABEL name="LanguageTool Server" \
+      version="$LanguageToolVersion" \
+      build="$LanguageToolBuild" \
+      build_date="$BuildDate" \
+      maintainer="Laudivan Almeida <lau@hanuky.space>" \
+      summary="Provides the $VERSION version of the LanguageTool Server."
+USER 82:82
+COPY --from=Build /install/* /
+WORKDIR /data
+VOLUME [ "/data" ]
+ENTRYPOINT [ "/app/startup.sh" ]
