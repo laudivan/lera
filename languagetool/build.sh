@@ -2,7 +2,7 @@ ThisPath=$(dirname $0)
 
 RepositoryName="languagetool-server"
 LanguageToolVersion="6.7"
-LanguageToolBuild="20250818"
+LanguageToolBuild="20250819"
 
 Tags=()
 Tags+=("docker.io/tiol4u/${RepositoryName}:${LanguageToolVersion}")
@@ -22,17 +22,17 @@ podman image build \
 \
 for Tag in ${Tags[@]}
 do
-    podman tag ${RepositoryName} $tag
+    podman tag ${RepositoryName} ${Tag}
 done && \
-podman image rm --force ${RepositoryName} && \
-\
 for Tag in ${Tags[@]}
 do
     podman push \
         --compress \
         --compression-level=9 \
         --remove-signatures \
-        $Tag
+        ${Tag}
 
     [[ $? == 0 ]] && podman image rm --force $Tag
-done
+done && \
+\
+podman image rm --force ${RepositoryName}
