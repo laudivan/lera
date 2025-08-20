@@ -4,11 +4,17 @@ RepositoryName="languagetool-server"
 LanguageToolVersion="6.7"
 LanguageToolBuild="20250819"
 
+Targets=()
+Targets+=("docker.io/tiol4u/${RepositoryName}")
+Targets+=("docker.io/tiol4u/${RepositoryName}")
+Targets+=("quay.io/tiol4u/${RepositoryName}")
+Targets+=("quay.io/tiol4u/${RepositoryName}")
+
 Tags=()
-Tags+=("docker.io/tiol4u/${RepositoryName}:${LanguageToolVersion}")
-Tags+=("docker.io/tiol4u/${RepositoryName}:latest")
-Tags+=("quay.io/laudivan/${RepositoryName}:${LanguageToolVersion}")
-Tags+=("quay.io/laudivan/${RepositoryName}:latest")
+Tags+=($LanguageToolVersion)
+Tags+=("latest")
+
+echo "Starting to build"
 
 podman image build \
     --no-cache \
@@ -20,19 +26,17 @@ podman image build \
     --tag=${RepositoryName} \
     $ThisPath && \
 \
-for Tag in ${Tags[@]}
-do
-    podman tag ${RepositoryName} ${Tag}
-done && \
-for Tag in ${Tags[@]}
-do
-    podman push \
-        --compress \
-        --compression-level=9 \
-        --remove-signatures \
-        ${Tag}
+echo -e "\n\n--=====  PUBLISHING  =====--\n\n"; \
+\
+for Target in ${Targets[@]}; do
+    for Tag in ${Tags[@]}; do
+        echo -e "\t-=: Publishing ${Target}:${Tag} :=- "
 
-    [[ $? == 0 ]] && podman image rm --force $Tag
+        podman tag "localhost/${RepositoryName}" "${Target}:${Tag}"
+        podman push --compress --compression-level=9 \
+        --remove-signatures "${Target}:${Tag}"
+        [[ $? == 0 ]] && podman image rm --force "${Target}:${Tag}"
+    done
 done && \
 \
-podman image rm --force ${RepositoryName}
+podman image rm --force "localhost/${RepositoryName}"

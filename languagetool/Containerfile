@@ -4,39 +4,28 @@ ARG LanguageToolBuild="20250817"
 ENV LanguageToolBaseUrl="https://internal1.languagetool.org/snapshots"
 ENV LanguageToolZipFile="LanguageTool-${LanguageToolBuild}-snapshot.zip"
 ENV LanguageToolDir="LanguageTool-${LanguageToolVersion}-SNAPSHOT"
-ENV OpenJdkBaseUrl="https://download.java.net/openjdk/jdk8u44/ri"
-ENV OpenJdkTarFile="openjdk_jre_ri-8u44-compact1-linux-i586.tar.gz"
 ADD ${LanguageToolBaseUrl}/${LanguageToolZipFile} /build/
 ADD https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.bin /build/
 ADD https://github.com/facebookresearch/fastText.git /build/fastText
-ADD ${OpenJdkUrl}/${OpenJdkTarFile} /build/
-COPY --chmod=700 <<SCRIPT /build/startup.sh
-#!/usr/bin/bash
-
-[[ ! -s server.properties ]] && \
-cat <<EOT > server.properties
+COPY --chmod=775 <<SCRIPT /build/startup.sh
+#!/usr/bin/env bash
+[[ ! -s /data/server.properties ]] && \
+cat <<EOT > /data/server.properties
 fasttextModel=/app/lid.176.bin
 fasttextBinary=/app/fasttext
 EOT
-
-/openjdk/bin/java -cp /app/languagetool-server.jar org.languagetool.server.HTTPServer \
-     --config server.properties --port 8081 --public --allow-origin "*"
+java -cp /app/languagetool-server.jar org.languagetool.server.HTTPServer \
+    --config /data/server.properties --port 8081 --public --allow-origin "*"
 SCRIPT
 WORKDIR /build/
 RUN dnf --refresh --assumeyes group install c-development && \
     dnf --assumeyes install unzip && \
     unzip ${LanguageToolZipFile} && \
-    rm -fr ${LanguageToolDir}/{README.md,CHANGES.md,CHANGES.txt,\
-           testrules.bat,testrules.sh,languagetool-commandline.jar,\
-           languagetool.jar} && \
-    mkdir -p /install/data && \
-    tar -xvf ${OpenJdkTarFile} && \
-    mv java-* /install/openjdk && \
-    mv ${LanguageToolDir} /install/app && \
     make --directory=./fastText && \
-    mv lid.176.bin startup.sh ./fastText/fasttext /install/app/
+    mv lid.176.bin startup.sh ./fastText/fasttext ${LanguageToolDir}/ && \
+    mv ${LanguageToolDir} /app
 
-FROM busybox:latest AS languageTool
+FROM quay.io/fedora/fedora-minimal:latest AS languageTool
 ARG BuildDate=
 EXPOSE 8081
 LABEL name="LanguageTool Server" \
@@ -45,11 +34,9 @@ LABEL name="LanguageTool Server" \
       build_date="$BuildDate" \
       maintainer="Laudivan Almeida <lau@hanuky.space>" \
       summary="Provides the $VERSION version of the LanguageTool Server."
+COPY --from=Build --chown=82:82 /app /app
+RUN dnf --refresh --assumeyes install java-latest-openjdk && dnf clean all
 USER 82:82
-COPY --from=Build /install/* /
-ADD \
-https://download.java.net/openjdk/jdk8u44/ri/openjdk_jre_ri-8u44-compact1-linux-i586.tar.gz
-/jvm
 WORKDIR /data
 VOLUME [ "/data" ]
 ENTRYPOINT [ "/app/startup.sh" ]
