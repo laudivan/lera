@@ -2,9 +2,18 @@
 Description=LanguageTool Server Container
 
 [Service]
-Environment="Image=quay.io/tiol4u/languagetool-server:latest" "Container=LanguageTool-Server"
+Environment="Image=quay.io/tiol4u/languagetool-server:latest" \
+            "Container=LanguageTool-Server" \
+            "DataVol=LanguaTool-Volume"
 Restart=always
-ExecStart=podman run --name ${Container} --publish 8081:8081 ${Image}
+ExecPre=if ! podman inspect ${Container}> /dev/null 2<&1; then \
+            podman pull $Image && \
+            if podman volume exists ${DataVol} 2>&1; then \
+                podman volume create ${DataVol}
+            fi \
+        fi
+ExecStart=podman run --rm --name ${Container} \
+            --publish 8081:8081 --volume=${DataVol}:/data ${Image}
 ExecStop=podman stop -t 2 ${Container}
 TimeoutStartSec=300
 TimeoutStopSec=5

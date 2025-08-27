@@ -14,9 +14,36 @@ cat <<EOT > /data/server.properties
 fasttextModel=/app/lid.176.bin
 fasttextBinary=/app/fasttext
 EOT
+
+appDictBase=/app/org/languagetool/resource/
+userDictBase=/data/dictionaries
+
+[[ ! -d "${userDictBase}" ]] && \
+    for appLangDir in ${appDictBase}/*; do
+        [[ ! -d "${appLangDir}" ]] && continue
+        
+        userLangDir=/data/dict/$(basename ${OrigLangDir})
+        
+        # If not exist create LangDir directory and copy dictionary
+        [[ ! -d "${userLangDir}" ]] && \
+            mkdir -p ${userLangDir} && \
+            cp -n ${appLandDir}/hunspell/spelling_custom.txt \
+                  ${userLangDir}/spelling_custom.txt
+    done
+
+# Updating LanguageTook-Server dictionaries database before start server
+for userLangDir in ${userDictBase}/*; do
+    lang=$(basename $userLangDir)
+    appLangDict=${appDictBase}/${lang}/hunspell/spelling_custom.txt
+    
+    cp -u ${userLangDir}/spelling_custom.txt ${appLangDict}
+done
+
+# Starting LanguageTool Server
 java -cp /app/languagetool-server.jar org.languagetool.server.HTTPServer \
-    --config /data/server.properties --port 8081 --public --allow-origin "*"
+    --config /data/server.properties --port 8081 --public --allow-origin '*'
 SCRIPT
+
 WORKDIR /build/
 RUN dnf --refresh --assumeyes group install c-development && \
     dnf --assumeyes install unzip && \
@@ -35,8 +62,9 @@ LABEL name="LanguageTool Server" \
       maintainer="Laudivan Almeida <lau@hanuky.space>" \
       summary="Provides the $VERSION version of the LanguageTool Server."
 COPY --from=Build --chown=82:82 /app /app
-RUN dnf --refresh --assumeyes install java-latest-openjdk && dnf clean all
+RUN dnf --refresh --assumeyes install java-latest-openjdk && \
+    dnf clean all
 USER 82:82
-WORKDIR /data
+WORKDIR data
 VOLUME [ "/data" ]
 ENTRYPOINT [ "/app/startup.sh" ]
