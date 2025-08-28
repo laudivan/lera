@@ -34,25 +34,25 @@ export CONTAINER_HOST=unix:///run/user/$UID/podman/podman.sock
     alias podman="podman-remote --url $CONTAINER_HOST"
 
 [[ ! -f /usr/bin/flatpak-spawn ]] && \
-    sudo dnf --quiet --refresh --assumeyes install flatpak-spawn.x86_64 && \
-    alias flatpak="flatpak-spawn"
+    sudo dnf --quiet --refresh --assumeyes install flatpak-spawn.x86_64
 
 [[ ! -f /usr/bin/host-spawn ]] && \
-    sudo dnf --quiet --refresh --assumeyes install host-spawn
+    sudo dnf --quiet --refresh --assumeyes install host-spawn && \
+    alias flatpak="host-spawn flatpak"
 
 [[ ! -d /var/home/linuxbrew ]] && \
     sudo dnf --quiet --refresh --assumeyes install gcc && \
     /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-    
+
 [[ -d /var/home/linuxbrew/.linuxbrew/bin/brew ]] &&
     eval $(/var/home/linuxbrew/.linuxbrew/bin/brew shellenv)
-    
+
 [[ ! -f /usr/bin/xdg-settings ]] && \
     sudo sudo dnf --quiet --refresh --assumeyes install xdg-utils
 
 [[ ! -f ~/.local/share/applications/flatpak-spawn@com.google.Chrome.desktop ]] && \
-    xdg-settings set default-web-browser flatpak-spawn@com.google.Chrome.desktop 
-    
+    xdg-settings set default-web-browser flatpak-spawn@com.google.Chrome.desktop
+
 [[ ! -f /usr/bin/zsh ]] && \
     sudo dnf --quiet --refresh --assumeyes install zsh
 
