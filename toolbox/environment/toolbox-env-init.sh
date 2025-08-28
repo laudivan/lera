@@ -30,15 +30,17 @@ function desktopUpdate {
 
 export CONTAINER_HOST=unix:///run/user/$UID/podman/podman.sock
 [[ ! -f /usr/bin/podman-remote ]] && \
-    sudo dnf --quiet --refresh --assumeyes install podman-remote.x86_64 &&
-    alias podman="podman-remote --url $CONTAINER_HOST"
+    sudo dnf --quiet --refresh --assumeyes install podman-remote.x86_64
+
+alias podman="podman-remote --url $CONTAINER_HOST"
 
 [[ ! -f /usr/bin/flatpak-spawn ]] && \
     sudo dnf --quiet --refresh --assumeyes install flatpak-spawn.x86_64
 
 [[ ! -f /usr/bin/host-spawn ]] && \
-    sudo dnf --quiet --refresh --assumeyes install host-spawn && \
-    alias flatpak="host-spawn flatpak"
+    sudo dnf --quiet --refresh --assumeyes install host-spawn
+
+alias flatpak="host-spawn flatpak"
 
 [[ ! -d /var/home/linuxbrew ]] && \
     sudo dnf --quiet --refresh --assumeyes install gcc && \
