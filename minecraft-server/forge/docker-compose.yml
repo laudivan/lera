@@ -1,0 +1,12 @@
+services:
+  forge:
+    image: quay.io/tiol4u/tr_pixu-forge-server:latest
+    restart: always
+    ports:
+      - "25565:25565"
+    volumes:
+      - "~/Minecraft/Forge:data"
+    environment:
+      - EULA=true
+      - JavaMaximumHeap=1024M
+      

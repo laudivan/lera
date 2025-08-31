@@ -1,0 +1,41 @@
+FROM registry.fedoraproject.org/fedora-minimal:latest AS trpixu.forge.server
+
+ARG MinecraftVersion=1.21.5
+ARG ForgeVersion=55.1.0
+ARG BaseUrl=https://maven.minecraftforge.net/net/minecraftforge/forge
+
+RUN --mount=type=cache,target=/var/cache/dnf \
+--mount=type=cache,target=/var/lib/dnf \
+dnf --refresh --quiet --assumeyes \
+install java-21-openjdk-headless && \
+dnf clean all && \
+mkdir /data && \
+chown 1000:1000 -R /data
+
+COPY --chown=1000:1000 --chmod=755 <<STARTUP /startup.sh
+#!/usr/bin/bash
+if [ ! -s run.sh ]; then
+    curl -# --output /tmp/installer.jar \
+    ${BaseUrl}/${MinecraftVersion}-${ForgeVersion}/forge-${MinecraftVersion}-${ForgeVersion}-installer.jar
+    java -jar /tmp/installer.jar --installServer /data
+    rm -f *.log
+fi
+
+[[ ! -f /data/eula.txt ]] && eval 'echo eula=$Eula > /data/eula.txt'
+
+source /data/run.sh
+STARTUP
+
+ENV Eula=true
+
+ENV JavaMaximumHeap=1024M
+
+EXPOSE 25565
+
+USER 1000:1000
+
+VOLUME [ "/data" ]
+
+WORKDIR /data
+
+ENTRYPOINT [ "/startup.sh" ]

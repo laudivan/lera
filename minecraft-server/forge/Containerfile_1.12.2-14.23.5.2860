@@ -1,0 +1,46 @@
+FROM registry.fedoraproject.org/fedora-minimal:41 AS trpixu.forge.server
+
+ARG MinecraftVersion=1.12.2
+ARG ForgeVersion=14.23.5.2860
+ARG BaseUrl=https://maven.minecraftforge.net/net/minecraftforge/forge
+
+COPY <<STARTUP /tmp/startup.sh
+#!/usr/bin/bash
+if [ ! -s /data/run.sh ]; then
+    curl -# --output /tmp/installer.jar \
+    ${BaseUrl}/${MinecraftVersion}-${ForgeVersion}/forge-${MinecraftVersion}-${ForgeVersion}-installer.jar
+    java -jar /tmp/installer.jar --installServer /data
+    rm -f *.log
+fi
+
+[[ ! -f /data/eula.txt ]] && echo eula=%Eula% > /data/eula.txt
+
+java -Xmx%JavaMaximumHeap% -Xms512M \
+    -jar /data/minecraft_server.${MinecraftVersion}.jar \
+    nogui "$@"
+STARTUP
+
+RUN --mount=type=cache,target=/var/cache/dnf \
+    --mount=type=cache,target=/var/lib/dnf \
+    dnf --refresh --quiet --assumeyes \
+    install java-1.8.0-openjdk && \
+    dnf clean all && \
+    mkdir /data && \
+    sed 's/%JavaMaximumHeap%/${JavaMaximumHeap}/' /tmp/startup.sh | \
+    sed 's/%Eula%/${Eula}/' > /startup.sh && \
+    chmod +x /startup.sh && \
+    chown 1000:1000 -R /startup.sh /data
+
+ENV Eula=true
+
+ENV JavaMaximumHeap=1024M
+
+EXPOSE 25565
+
+USER 1000:1000
+
+VOLUME [ "/data" ]
+
+WORKDIR /data
+
+ENTRYPOINT [ "/startup.sh" ]
