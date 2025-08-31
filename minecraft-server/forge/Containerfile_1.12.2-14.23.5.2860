@@ -6,7 +6,7 @@ ARG BaseUrl=https://maven.minecraftforge.net/net/minecraftforge/forge
 
 COPY <<STARTUP /tmp/startup.sh
 #!/usr/bin/bash
-if [ ! -s /data/run.sh ]; then
+if [ ! -s /data/minecraft_server.${MinecraftVersion}.jar ]; then
     curl -# --output /tmp/installer.jar \
     ${BaseUrl}/${MinecraftVersion}-${ForgeVersion}/forge-${MinecraftVersion}-${ForgeVersion}-installer.jar
     java -jar /tmp/installer.jar --installServer /data
