@@ -1,0 +1,19 @@
+[Desktop Entry]
+Version=1.0
+Name=Google Chrome
+Exec=~/.local/toolbox/environment/toolbox-flatpak.sh run --command=/app/bin/chrome --file-forwarding com.google.Chrome %U
+StartupNotify=true
+Terminal=false
+Icon=com.google.Chrome
+Type=Application
+Categories=Network;WebBrowser;
+MimeType=application/pdf;application/rdf+xml;application/rss+xml;application/xhtml+xml;application/xhtml_xml;application/xml;image/gif;image/jpeg;image/png;image/webp;text/html;text/xml;x-scheme-handler/http;x-scheme-handler/https;
+Actions=new-window;new-private-window;
+
+[Desktop Action new-window]
+Name=New Window
+Exec=~/.local/toolbox/environment/toolbox-flatpak.sh run --command=/app/bin/chrome --file-forwarding com.google.Chrome
+
+[Desktop Action new-private-window]
+Name=New Incognito Window
+Exec=~/.local/toolbox/environment/toolbox-flatpak.sh run --command=/app/bin/chrome --file-forwarding com.google.Chrome --new-window %U
