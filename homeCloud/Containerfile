@@ -1,0 +1,12 @@
+FROM registry.fedoraproject.org/fedora-minimal:latest AS homeCloud
+
+RUN \
+	dnf --refresh --assumeyes install \
+	nextcloud.noarch nextcloud-mysql.noarch nextcloud-httpd.noarch \
+	kakoune.x86_64 bash-completion.noarch shadow-utils.x86_64 && \
+	echo "%users ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+
+
+EXPOSE 80
+
+

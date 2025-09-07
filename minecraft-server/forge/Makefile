@@ -1,6 +1,6 @@
 Image=trpixu.forge.server
-QuayRepository=quay.io/tiol4au
-DockerRepository=docker.io/tiol4au
+QuayRepository=quay.io/tiol4u
+DockerRepository=docker.io/tiol4u
 InstallationVersion=${MinecraftVersion}-${ForgeVersion}
 
 all: build deploy clean
@@ -9,8 +9,12 @@ build:
 	podman image build \
 		--build-arg="MinecraftVersion=${MinecraftVersion}" \
 		--build-arg="ForgeVersion=${ForgeVersion}" \
+		--no-cache \
+		--force-rm \
+		--format=docker \
+		--squash \
 		--tag=${Image}:${InstallationVersion} \
-		--file=Containerfile_${InstallationVersion}	.
+		--file=Dockerfile_${InstallationVersion} .
 
 test: build
 	podman run -it --rm \
@@ -31,41 +35,61 @@ tag: tag-to-quay tag-to-docker
 
 tag-to-quay:
 	podman image tag \
-		${Image}:${InstallationVersion} quay.io/tiol4au/${Image}:${InstallationVersion}
+		${Image}:${InstallationVersion} ${QuayRepository}/${Image}:${InstallationVersion}
 	
 	[[ ${AddLatestTag}==true ]] && podman image tag \
-	quay.io/tiol4au/${Image}:${InstallationVersion} quay.io/tiol4au/${Image}:latest
+	${QuayRepository}/${Image}:${InstallationVersion} ${QuayRepository}/${Image}:latest
 
 tag-to-docker:
 	podman image tag \
-		${Image}:${InstallationVersion} docker.io/tiol4au/${Image}:${InstallationVersion}
+		${Image}:${InstallationVersion} ${DockerRepository}/${Image}:${InstallationVersion}
 
 	[[ ${AddLatestTag}==true ]] && podman image tag \
-	docker.io/tiol4au/${Image}:${InstallationVersion} docker.io/tiol4au/${Image}:latest
+	${DockerRepository}/${Image}:${InstallationVersion} ${DockerRepository}/${Image}:latest
 
 deploy: deploy-to-quay deploy-to-docker
 
 deploy-to-quay:
 	podman login --username laudivan --secret login-quay.io quay.io
 
-	podman push quay.io/tiol4au/${Image}:${InstallationVersion}
+	podman push \
+		--compression-format=gzip \
+		--compression-level=9 \
+		--format=v2s2 \
+		--remove-signatures \
+		${QuayRepository}/${Image}:${InstallationVersion}
 
-	[[ ${AddLatestTag}==true ]] && podman push quay.io/tiol4au/${Image}:latest
+	[[ ${AddLatestTag}==true ]] && podman push \	
+		--compression-format=gzip \
+		--compression-level=9 \
+		--format=v2s2 \
+		--remove-signatures \
+		${QuayRepository}/${Image}:latest
 
 deploy-to-docker:
 	podman login --username tiol4u --secret login-docker.io docker.io
 
-	podman push docker.io/tiol4au/${Image}:${InstallationVersion}
+	podman push \
+		--compression-format=gzip \
+		--compression-level=9 \
+		--format=v2s2 \
+		--remove-signatures \
+		${DockerRepository}/${Image}:${InstallationVersion}
 
-	[[ ${AddLatestTag}==true ]] && podman push docker.io/tiol4au/${Image}:latest
+	[[ ${AddLatestTag}==true ]] && podman push \
+		--compression-format=gzip \
+		--compression-level=9 \
+		--format=v2s2 \
+		--remove-signatures \
+		${DockerRepository}/${Image}:latest
 
 clean-all: clean
 	podman image rm --force \
 		${Image}:${InstallationVersion} \
-		quay.io/tiol4au/${Image}:${InstallationVersion} \
-		quay.io/tiol4au/${Image}:latest \
-		docker.io/tiol4au/${Image}:${InstallationVersion} \
-		docker.io/tiol4au/${Image}:latest
+		${QuayRepository}/${Image}:${InstallationVersion} \
+		${QuayRepository}/${Image}:latest \
+		${DockerRepository}/${Image}:${InstallationVersion} \
+		${DockerRepository}/${Image}:latest
 
 clean:
 	podman image prune --build-cache --force
