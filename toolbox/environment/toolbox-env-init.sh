@@ -1,5 +1,14 @@
 CONTAINERENV=/run/.containerenv
 
+function code {
+    if [ -n "${TOOLBOX_ID}" ]; then
+        host-spawn -no-pty flatpak run com.visualstudio.code "$@"
+    else
+        flatpak run com.visualstudio.code "$@"
+    fi
+}
+
+
 [[ ! -s $CONTAINERENV ]] && return
 
 while read LINE; do
@@ -27,6 +36,7 @@ function desktopUpdate {
 		    $DEST_DIR_ICONS/${ID}@${AUX%%.desktop}.svg
 	done
 }
+
 
 export CONTAINER_HOST=unix:///run/user/$UID/podman/podman.sock
 [[ ! -f /usr/bin/podman-remote ]] && \
