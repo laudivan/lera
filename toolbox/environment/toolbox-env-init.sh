@@ -40,23 +40,28 @@ function desktopUpdate {
 
 export CONTAINER_HOST=unix:///run/user/$UID/podman/podman.sock
 [[ ! -f /usr/bin/podman-remote ]] && \
-    sudo dnf --quiet --refresh --assumeyes install podman-remote.x86_64
+    sudo dnf --quiet --refresh --assumeyes install podman-remote.x86_64 && \
+    sudo dnf clean all
 
 alias podman="podman-remote --url $CONTAINER_HOST"
 
 [[ ! -f /usr/bin/flatpak-spawn ]] && \
-    sudo dnf --quiet --refresh --assumeyes install flatpak-spawn.x86_64
+    sudo dnf --quiet --refresh --assumeyes install flatpak-spawn.x86_64 && \
+    sudo dnf clean all
 
 [[ ! -f /usr/bin/host-spawn ]] && \
-    sudo dnf --quiet --refresh --assumeyes install host-spawn
+    sudo dnf --quiet --refresh --assumeyes install host-spawn && \
+    sudo dnf clean all
 
 alias flatpak="host-spawn flatpak"
 
 [[ ! -d /var/home/linuxbrew ]] && \
     sudo dnf --quiet --refresh --assumeyes install gcc && \
-    /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+    NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)" && \
+    eval $(/var/home/linuxbrew/.linuxbrew/bin/brew shellenv) && \
+    brew install zsh kakoune
 
-[[ -d /var/home/linuxbrew/.linuxbrew/bin/brew ]] &&
+[[ -s /var/home/linuxbrew/.linuxbrew/bin/brew ]] &&
     eval $(/var/home/linuxbrew/.linuxbrew/bin/brew shellenv)
 
 [[ ! -f /usr/bin/xdg-settings ]] && \
@@ -65,11 +70,9 @@ alias flatpak="host-spawn flatpak"
 [[ ! -f ~/.local/share/applications/flatpak-spawn@com.google.Chrome.desktop ]] && \
     xdg-settings set default-web-browser flatpak-spawn@com.google.Chrome.desktop
 
-[[ ! -f /usr/bin/zsh ]] && \
-    sudo dnf --quiet --refresh --assumeyes install zsh
-
-#export PROMPT="%{%f%b%k%} ~L4u $TOOLBOX_NAME  $(build_prompt)"
-
 export HOSTNAME="${HOSTNAME}-${TOOLBOX_NAME//\"/}"
 
-alias dnf="sudo dnf --assumeyes"
+function dnf {
+    sudo dnf --quiet --refresh --assumeyes "$@"
+    sudo dnf clean all
+}
