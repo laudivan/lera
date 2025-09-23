@@ -1,0 +1,91 @@
+name: lera-work-services 
+
+services:
+  db:
+    restart: always
+    image: postgres:16
+    environment:
+      # Using variables from your .env file for better security.
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/postgresql/data
+    networks:
+      - db-network
+      - default
+
+  pgAdmin:
+    restart: unless-stopped
+    # Switched to the official pgAdmin image.
+    image: dpage/pgadmin4:latest
+    ports:
+      - "880:80"
+    environment:
+      # These are the correct variables for setting up the initial pgAdmin user.
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_DEFAULT_USERNAME: ${PGADMIN_DEFAULT_USERNAME}
+      PGADMIN_HOST: db
+      PGADMIN_PORT: 5432
+    volumes:
+      - /var/lib/postgresql/data:/var/lib/pgadmin4
+    depends_on:
+      - db
+    networks:
+      - db-network
+      - default
+
+  syncthing:
+    restart: unless-stopped
+    image: lscr.io/linuxserver/syncthing:latest
+    ports:
+      - "8384:8384"   # Web GUI
+      - "22000:22000" # Sync Protocol
+      - "21027:21027/udp" # Local Discovery
+    volumes:
+      - /var/lib/syncthing/config:/config
+      - /var/lib/syncthing/data:/data1
+      - /var/home/l:/data2
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ=America/Bahia
+    networks:
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 250M
+          cpus: '0.5'
+
+  crafty:
+    restart: unless-stopped
+    image: registry.gitlab.com/crafty-controller/crafty-4:nightly
+    volumes:
+      - /var/lib/crafty/config:/crafty/app/config
+      - /var/lib/crafty/servers:/crafty/servers
+      - /var/lib/crafty/logs:/crafty/logs
+      - /var/lib/crafty/import:/crafty/import
+      - /var/lib/crafty/backups:/crafty/backups
+    ports:
+      - "8443:8443"
+      - "8123:8123"
+      - "19132:19123/udp"
+      - "25500-25600:25500-25600"
+    environment:
+      TZ: America/Bahia
+      PUID: 1000
+      PGID: 1000
+    networks:
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 5G
+          cpus: '4'
+
+networks:
+  default:
+    driver: bridge
+  db-network:
+    driver: Local

@@ -1,0 +1,72 @@
+name: lera-fancy-services
+services:
+  syncthing:
+    hostname: syncthing
+    restart: unless-stopped
+    image: syncthing/syncthing:latest
+    ports:
+      - "8384:8384/tcp"   # Web GUI
+      - "22000:22000/tcp" # Sync Protocol
+      - "21027:21027/udp" # Local Discovery
+    volumes:
+      - /var/home/l/Servers/Syncthing:/var/syncthing
+      - /var/home/l:/home/l
+    environment:
+      PUID: 1000
+      PGID: 1000
+      TZ: America/Recife
+    networks:
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.75'
+
+  crafty:
+    hostname: craftypanel
+    restart: unless-stopped
+    image: registry.gitlab.com/crafty-controller/crafty-4:dev
+    volumes:
+      - /var/home/l/Servers/CraftyPanel/config:/crafty/app/config
+      - /var/home/l/Servers/CraftyPanel/servers:/crafty/servers
+      - /var/home/l/Servers/CraftyPanel/logs:/crafty/logs
+      - /var/home/l/Servers/CraftyPanel/import:/crafty/import
+      - /var/home/l/Servers/CraftyPanel/backups:/crafty/backups
+    ports:
+      - "8443:8443"
+      - "8123:8123"
+      - "19132:19123/udp"
+      - "25500-25600:25500-25600"
+    environment:
+      TZ: America/Recife
+      PUID: 1000
+      PGID: 1000
+    networks:
+      - default
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+          cpus: '4'
+  languagetool:
+    hostname: languagetool
+    image: tiol4u/languagetool-server:latest
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      TZ: America/Recife
+      PUID: 1000
+      PGID: 1000
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: '0.5'
+    networks:
+      - default
+
+networks:
+  default:
+    driver: bridge
