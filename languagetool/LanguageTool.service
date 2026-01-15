@@ -4,9 +4,9 @@ Description=LanguageTool Server Container
 [Service]
 Environment="Image=quay.io/tiol4u/languagetool-server:latest" \
             "Container=LanguageTool-Server" \
-            "DataVol=LanguaTool-Volume"
+            "DataVol=LanguageTool-Volume"
 Restart=always
-ExecPre=if ! podman inspect ${Container}> /dev/null 2<&1; then \
+ExecStartPre=if ! podman inspect ${Container}> /dev/null 2<&1; then \
             podman pull $Image && \
             if podman volume exists ${DataVol} 2>&1; then \
                 podman volume create ${DataVol}
@@ -17,7 +17,7 @@ ExecStart=podman run --rm --name ${Container} \
 ExecStop=podman stop -t 2 ${Container}
 TimeoutStartSec=300
 TimeoutStopSec=5
-After=multi-user.target
+Requires=multi-user.target
 
 [Install]
 WantedBy=network.target
