@@ -1,0 +1,38 @@
+
+
+FROM fedora-minimal:latest 
+
+ADD https://download.nextcloud.com/server/releases/latest.tar.bz2 /app
+
+COPY <<EOF /etc/selinux/config
+SELINUX=enforcing
+SELINUXTYPE=targeted
+EOF
+
+RUN --mount=type=cache,target=/var/cache \
+# export RPMFusionBaseUrl="https://mirrors.rpmfusion.org" \
+# export RPMVer="release-$(rpm -E %fedora).noarch.rpm" \
+# dnf install \
+# 	"${RPMFusionBaseUrl}/free/fedora/rpmfusion-free-${RPMVer}" \
+# 	"${RPMFusionBaseUrl}/nonfree/fedora/rpmfusion-nonfree-${RPMVer}"
+dnf install \
+#	ffmpeg \
+	curl php-pear-Net-Curl \
+	php-pdo php-mysqlnd \
+	php-mbstring \
+	php-pear-XML-Parser php-xml php-pecl-xmlrpc \
+	php-gd \
+	php-mbstring \
+	php-pecl-zip \
+	php-intl \
+	php-sodium php-pecl-mcrypt php-pear-Crypt-Blowfish \
+	php-pear-Cache-Lite php-pecl-apcu php-pecl-memcached php-pecl-redis6 \
+	php-pecl-imagick \
+	php-ldap php-smbclient \
+	php-pear-Mail php-pear-Net-IMAP php-pear-Net-SMTP \
+	php-pecl-oauth php-pecl-pspell \
+	php-seld-phar-utils \
+	libreoffice libreoffice-langpack-pt-BR \
+	php-fpm
+
+
