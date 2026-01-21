@@ -1,0 +1,31 @@
+services:
+  nextcloud:
+    build:
+      context: .
+      dockerfile: Containerfile
+    image: nextcloud-lera-server:latest
+    container_name: nextcloud-lera-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - nextcloud:/var/www/html
+      - nextcloud/config:/var/www/html/config
+      - nextcloud/data:/var/www/html/data
+      - nextcloud/custom_apps:/var/www/html/custom_apps
+    environment:
+      - PUID=1000
+      - PGID=1000
+  mariadb:
+    image: mariadb:latest
+    hostname: mariadb-server
+    container_name: mariadb-server
+    volumes:
+      - mariadb:/var/lib/mysql
+    environment:
+      - MYSQL_ROOT_PASSWORD=root
+      - MYSQL_DATABASE=nextcloud
+      - MYSQL_USER=nextcloud
+      - MYSQL_PASSWORD=nextcloud    
+volumes:
+  nextcloud:
+  mariadb:
