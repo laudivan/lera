@@ -23,14 +23,14 @@ HELP=0
 ERR=0
 err_msg=""
 
-# Entry point: parse CLI options, validate inputs/dependencies, and run DDNS updates.
+# Entry point: parse CLI options, validate inputs, and run DDNS updates.
 # @param $@ string - Command-line arguments passed to the script
 # @return 0 on success, 1 on validation or update failure
 main () {
   parse_options "$@"
 
   if [[ -n "${err_msg}" ]]; then
-    printf "Error: %s\n" "${err_msg}" >&2
+    log_error "${err_msg}"
   fi
 
   if [[ "${HELP}" -eq 1 ]]; then
@@ -45,33 +45,84 @@ main () {
 
   for cmd in curl jq awk; do
     if ! command -v "${cmd}" >/dev/null 2>&1; then
-      printf "Error: Required command '%s' is not installed.\n" "${cmd}" >&2
+      log_error "Required command '${cmd}' is not installed."
       exit 1
     fi
   done
 
   if [[ -z "${zone_id}" ]]; then
-    printf "Error: --zone-id is required.\n" >&2
+    log_error "--zone-id is required."
     help >&2
     exit 1
   fi
 
   if [[ -z "${token}" ]]; then
-    printf "Error: --token is required.\n" >&2
+    log_error "--token is required."
     help >&2
     exit 1
   fi
 
   if [[ "${#record_name[@]}" -eq 0 ]]; then
-    printf "Error: At least one --name is required.\n" >&2
+    log_error "At least one --name is required."
     help >&2
     exit 1
   fi
 
+  local ipv4=""
+  local ipv6=""
+  ipv4=$(ipv 4 2>/dev/null) || true
+  ipv6=$(ipv 6 2>/dev/null) || true
+
+  if [[ -z "${ipv4}" && -z "${ipv6}" ]]; then
+    log_error "Failed to detect both public IPv4 and IPv6 addresses."
+    exit 1
+  fi
+
   local exit_code=0
-  local name
+  local name rtype target_ip records record
   for name in "${record_name[@]}"; do
-    if ! update-ddns "${name}"; then
+    local found_any=0
+    for rtype in A AAAA; do
+      if ! records=$(get_record \
+        "${zone_id}" "${token}" "${name}" "${rtype}"); then
+        exit_code=1
+        continue
+      fi
+
+      [[ -z "${records}" ]] && continue
+      found_any=1
+
+      if [[ "${rtype}" == "A" ]]; then
+        target_ip="${ipv4}"
+      else
+        target_ip="${ipv6}"
+      fi
+
+      if [[ -z "${target_ip}" ]]; then
+        log_error "Public IP for ${rtype} not available for '${name}'."
+        exit_code=1
+        continue
+      fi
+
+      while IFS= read -r record; do
+        [[ -z "${record}" ]] && continue
+
+        local current_ip
+        current_ip=$(jq -r '.content' <<< "${record}")
+
+        if [[ "${current_ip}" == "${target_ip}" ]]; then
+          continue
+        fi
+
+        if ! update-ddns \
+          "${zone_id}" "${token}" "${record}" "${target_ip}"; then
+          exit_code=1
+        fi
+      done <<< "${records}"
+    done
+
+    if [[ "${found_any}" -eq 0 ]]; then
+      log_error "No A or AAAA DNS records found for '${name}'."
       exit_code=1
     fi
   done
@@ -79,95 +130,96 @@ main () {
   exit "${exit_code}"
 }
 
-# Fetch and update all A and AAAA records for a given DNS name in Cloudflare.
-# @param $1 string name - Fully qualified domain name to update
-# @return 0 if all records updated, 1 if lookup or any update fails
-update-ddns () {
-  local name="${1}"
-  local records
-
-  if ! records=$(get_record "${name}"); then
-    return 1
-  fi
-
-  if [[ -z "${records}" ]]; then
-    printf "Error: No A or AAAA DNS records found for '%s'.\n" "${name}" >&2
-    return 1
-  fi
-
-  local has_error=0
-  local record_aux
-  while IFS= read -r record_aux; do
-    [[ -z "${record_aux}" ]] && continue
-
-    local record_id record_type current_ip ipversion ipaddress payload update_resp
-    record_id=$(jq -r '.id' <<< "${record_aux}")
-    record_type=$(jq -r '.type' <<< "${record_aux}")
-    current_ip=$(jq -r '.content' <<< "${record_aux}")
-
-    case "${record_type}" in
-      A)    ipversion=4 ;;
-      AAAA) ipversion=6 ;;
-      *)
-        printf "Error: Unsupported record type '%s' for '%s'.\n" "${record_type}" "${name}" >&2
-        has_error=1
-        continue
-        ;;
-    esac
-
-    if ! ipaddress=$(ipv "${ipversion}"); then
-      has_error=1
-      continue
-    fi
-
-    payload=$(jq -c --arg ip "${ipaddress}" 'del(.id) | .content = $ip' <<< "${record_aux}")
-
-    if ! update_resp=$(curl -sS -X PUT "${api}/zones/${zone_id}/dns_records/${record_id}" \
-      -H "Authorization: Bearer ${token}" \
-      -H "Content-Type: application/json" \
-      --data "${payload}" 2>/dev/null); then
-      printf "Error: HTTP request failed when updating %s record for '%s'.\n" "${record_type}" "${name}" >&2
-      has_error=1
-      continue
-    fi
-
-    if [[ "$(jq -r '.success' <<< "${update_resp}")" != "true" ]]; then
-      local api_err
-      api_err=$(jq -r '.errors | map(.message) | join("; ")' <<< "${update_resp}")
-      printf "Error: Failed to update %s record for '%s': %s\n" "${record_type}" "${name}" "${api_err:-Unknown error}" >&2
-      has_error=1
-      continue
-    fi
-
-    printf "Updated %s (%s): %s -> %s\n" "${name}" "${record_type}" "${current_ip}" "${ipaddress}"
-  done <<< "${records}"
-
-  return "${has_error}"
+# Log an informational message with a timestamp to stdout.
+# @param $* string - Message to log
+log_info () {
+  printf "%s [INFO] %s\n" "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*"
 }
 
-# Retrieve existing A and AAAA DNS records for a hostname from the Cloudflare API.
-# @param $1 string name - Fully qualified domain name to query
-# @stdout Compact JSON objects ({id, type, name, content, proxied}), one per line
-# @return 0 on success, 1 on HTTP or API error
+# Log an error message with a timestamp to stderr.
+# @param $* string - Error message to log
+log_error () {
+  printf "%s [ERROR] %s\n" "$(date '+%Y-%m-%dT%H:%M:%S%z')" "$*" >&2
+}
+
+# Update a single DNS record in Cloudflare with a new IP address.
+# @param $1 string zone   - Cloudflare Zone ID
+# @param $2 string secret - Cloudflare API Bearer Token
+# @param $3 string record - Compact JSON object of the DNS record
+# @param $4 string new_ip - Target IP address to set in the record
+# @return 0 if updated successfully, 1 on HTTP or API error
+update-ddns () {
+  local zone="${1}"
+  local secret="${2}"
+  local record="${3}"
+  local new_ip="${4}"
+
+  local record_id record_type name current_ip payload update_resp
+  record_id=$(jq -r '.id' <<< "${record}")
+  record_type=$(jq -r '.type' <<< "${record}")
+  name=$(jq -r '.name' <<< "${record}")
+  current_ip=$(jq -r '.content' <<< "${record}")
+
+  payload=$(jq -c --arg ip "${new_ip}" \
+    'del(.id) | .content = $ip' <<< "${record}")
+
+  if ! update_resp=$(curl -sS -X PUT \
+    "${api}/zones/${zone}/dns_records/${record_id}" \
+    -H "Authorization: Bearer ${secret}" \
+    -H "Content-Type: application/json" \
+    --data "${payload}" 2>/dev/null); then
+    log_error "HTTP request failed updating ${record_type} for '${name}'."
+    return 1
+  fi
+
+  if [[ "$(jq -r '.success' <<< "${update_resp}")" != "true" ]]; then
+    local api_err
+    api_err=$(jq -r '.errors | map(.message) | join("; ")' <<< "${update_resp}")
+    log_error "Failed to update ${record_type} for '${name}':" \
+      "${api_err:-Unknown error}"
+    return 1
+  fi
+
+  log_info "Updated ${name} (${record_type}): ${current_ip} -> ${new_ip}"
+  return 0
+}
+
+# Retrieve existing DNS records for a hostname and type from Cloudflare API.
+# @param $1 string zone   - Cloudflare Zone ID
+# @param $2 string secret - Cloudflare API Bearer Token
+# @param $3 string name   - Fully qualified domain name to query
+# @param $4 string rtype  - DNS record type (A or AAAA)
+# @stdout Compact JSON objects ({id, type, name, content, proxied}), 1 per line
+# @return 0 on success, 1 on invalid type, HTTP, or API error
 get_record () {
-  local name="${1}"
+  local zone="${1}"
+  local secret="${2}"
+  local name="${3}"
+  local rtype="${4}"
   local response
 
-  if ! response=$(curl -sS -X GET "${api}/zones/${zone_id}/dns_records?name=${name}" \
-    -H "Authorization: Bearer ${token}" \
+  if [[ "${rtype}" != "A" && "${rtype}" != "AAAA" ]]; then
+    log_error "Invalid record type '${rtype}' (expected A or AAAA)."
+    return 1
+  fi
+
+  local url="${api}/zones/${zone}/dns_records?name=${name}&type=${rtype}"
+  if ! response=$(curl -sS -X GET "${url}" \
+    -H "Authorization: Bearer ${secret}" \
     -H "Content-Type: application/json" 2>/dev/null); then
-    printf "Error: HTTP request failed when fetching records for '%s'.\n" "${name}" >&2
+    log_error "HTTP request failed fetching ${rtype} records for '${name}'."
     return 1
   fi
 
   if [[ "$(jq -r '.success' <<< "${response}")" != "true" ]]; then
     local api_err
     api_err=$(jq -r '.errors | map(.message) | join("; ")' <<< "${response}")
-    printf "Error: Cloudflare API error fetching '%s': %s\n" "${name}" "${api_err:-Unknown error}" >&2
+    log_error "Cloudflare API error fetching ${rtype} for '${name}':" \
+      "${api_err:-Unknown error}"
     return 1
   fi
 
-  jq -c '.result[] | select(.type == "A" or .type == "AAAA") | {id, type, name, content, proxied}' <<< "${response}"
+  jq -c '.result[] | {id, type, name, content, proxied}' <<< "${response}"
 }
 
 # Detect the current public IP address using Cloudflare's trace endpoint.
@@ -180,20 +232,22 @@ ipv () {
   [[ "${version}" == "6" ]] && cf_dns="[2606:4700:4700::1111]"
 
   local ip
-  if ! ip=$(curl -fsS -"${version}" --max-time 10 "https://${cf_dns}/cdn-cgi/trace" 2>/dev/null | awk -F= '/^ip=/{print $2}'); then
-    printf "Error: Failed to fetch public IPv%s address.\n" "${version}" >&2
+  local trace_url="https://${cf_dns}/cdn-cgi/trace"
+  if ! ip=$(curl -fsS -"${version}" --max-time 10 "${trace_url}" 2>/dev/null \
+    | awk -F= '/^ip=/{print $2}'); then
+    log_error "Failed to fetch public IPv${version} address."
     return 1
   fi
 
   if [[ -z "${ip}" ]]; then
-    printf "Error: Empty IPv%s address returned from trace.\n" "${version}" >&2
+    log_error "Empty IPv${version} address returned from trace."
     return 1
   fi
 
   printf "%s\n" "${ip}"
 }
 
-# Parse command-line options defined in long_opts and populate global variables.
+# Parse command-line options defined in long_opts and populate globals.
 # @param $@ string - Raw command-line arguments
 # @return 0 on valid options, 1 on missing value or unknown option
 parse_options () {
@@ -304,13 +358,13 @@ help () {
   cat <<EOF
 Usage: $(basename "$0") [OPTIONS]
 
-Update Cloudflare DNS (A and AAAA) records with the current public IPv4/IPv6 addresses.
+Update Cloudflare DNS (A and AAAA) records with public IPv4/IPv6 addresses.
 
 Options:
   --account-id <id>   Cloudflare Account ID
   --zone-id <id>      Cloudflare Zone ID (required)
   --token <token>     Cloudflare API Bearer Token (required)
-  --name <hostname>   DNS record name to update (required, can be specified multiple times)
+  --name <hostname>   DNS record name to update (required, repeatable)
   --help              Show this help message and exit
 
 Example:
