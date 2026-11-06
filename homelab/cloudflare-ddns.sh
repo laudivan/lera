@@ -1,8 +1,19 @@
 #!/usr/bin/env bash
+# -----------------------------------------------------------------------------
+# cloudflare-ddns.sh - Dynamic DNS updater for Cloudflare (A and AAAA records)
+#
+# Authors:
+#   Laudivan Almeida <laudivan@live.com>
+#   Completed with the assistance of Antigravity (Google DeepMind)
+#
+# License:
+#   MIT License - https://opensource.org/licenses/MIT
+# -----------------------------------------------------------------------------
 
 set -o pipefail
 
 readonly api="https://api.cloudflare.com/client/v4"
+readonly long_opts="help,account-id:,zone-id:,name:,token:"
 
 declare -a record_name=()
 account_id=""
@@ -12,108 +23,12 @@ HELP=0
 ERR=0
 err_msg=""
 
-if [[ $# -eq 0 ]]; then
-  HELP=1
-  ERR=1
-fi
-
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --account-id)
-      if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
-        err_msg="Option '$1' requires a value."
-        ERR=1
-        break
-      fi
-      account_id="$2"
-      shift 2
-      ;;
-    --account-id=*)
-      account_id="${1#*=}"
-      if [[ -z "${account_id}" ]]; then
-        err_msg="Option '--account-id' requires a value."
-        ERR=1
-        break
-      fi
-      shift
-      ;;
-    --zone-id)
-      if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
-        err_msg="Option '$1' requires a value."
-        ERR=1
-        break
-      fi
-      zone_id="$2"
-      shift 2
-      ;;
-    --zone-id=*)
-      zone_id="${1#*=}"
-      if [[ -z "${zone_id}" ]]; then
-        err_msg="Option '--zone-id' requires a value."
-        ERR=1
-        break
-      fi
-      shift
-      ;;
-    --name)
-      if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
-        err_msg="Option '$1' requires a value."
-        ERR=1
-        break
-      fi
-      record_name+=("$2")
-      shift 2
-      ;;
-    --name=*)
-      if [[ -z "${1#*=}" ]]; then
-        err_msg="Option '--name' requires a value."
-        ERR=1
-        break
-      fi
-      record_name+=("${1#*=}")
-      shift
-      ;;
-    --token)
-      if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
-        err_msg="Option '$1' requires a value."
-        ERR=1
-        break
-      fi
-      token="$2"
-      shift 2
-      ;;
-    --token=*)
-      token="${1#*=}"
-      if [[ -z "${token}" ]]; then
-        err_msg="Option '--token' requires a value."
-        ERR=1
-        break
-      fi
-      shift
-      ;;
-    --help)
-      HELP=1
-      shift
-      ;;
-    --)
-      shift
-      break
-      ;;
-    *)
-      err_msg="Unknown option: $1"
-      HELP=1
-      ERR=1
-      break
-      ;;
-  esac
-done
-
-readonly account_id zone_id token
-
-# Validate CLI inputs, check dependencies, and run DDNS updates for all record names.
-# @param none (uses global options: zone_id, token, record_name, HELP, ERR)
+# Entry point: parse CLI options, validate inputs/dependencies, and run DDNS updates.
+# @param $@ string - Command-line arguments passed to the script
 # @return 0 on success, 1 on validation or update failure
 main () {
+  parse_options "$@"
+
   if [[ -n "${err_msg}" ]]; then
     printf "Error: %s\n" "${err_msg}" >&2
   fi
@@ -278,6 +193,111 @@ ipv () {
   printf "%s\n" "${ip}"
 }
 
+# Parse command-line options defined in long_opts and populate global variables.
+# @param $@ string - Raw command-line arguments
+# @return 0 on valid options, 1 on missing value or unknown option
+parse_options () {
+  if [[ $# -eq 0 ]]; then
+    HELP=1
+    ERR=1
+    return 1
+  fi
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --account-id)
+        if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+          err_msg="Option '$1' requires a value."
+          ERR=1
+          break
+        fi
+        account_id="$2"
+        shift 2
+        ;;
+      --account-id=*)
+        account_id="${1#*=}"
+        if [[ -z "${account_id}" ]]; then
+          err_msg="Option '--account-id' requires a value."
+          ERR=1
+          break
+        fi
+        shift
+        ;;
+      --zone-id)
+        if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+          err_msg="Option '$1' requires a value."
+          ERR=1
+          break
+        fi
+        zone_id="$2"
+        shift 2
+        ;;
+      --zone-id=*)
+        zone_id="${1#*=}"
+        if [[ -z "${zone_id}" ]]; then
+          err_msg="Option '--zone-id' requires a value."
+          ERR=1
+          break
+        fi
+        shift
+        ;;
+      --name)
+        if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+          err_msg="Option '$1' requires a value."
+          ERR=1
+          break
+        fi
+        record_name+=("$2")
+        shift 2
+        ;;
+      --name=*)
+        if [[ -z "${1#*=}" ]]; then
+          err_msg="Option '--name' requires a value."
+          ERR=1
+          break
+        fi
+        record_name+=("${1#*=}")
+        shift
+        ;;
+      --token)
+        if [[ $# -lt 2 || -z "${2:-}" || "${2:-}" == --* ]]; then
+          err_msg="Option '$1' requires a value."
+          ERR=1
+          break
+        fi
+        token="$2"
+        shift 2
+        ;;
+      --token=*)
+        token="${1#*=}"
+        if [[ -z "${token}" ]]; then
+          err_msg="Option '--token' requires a value."
+          ERR=1
+          break
+        fi
+        shift
+        ;;
+      --help)
+        HELP=1
+        shift
+        ;;
+      --)
+        shift
+        break
+        ;;
+      *)
+        err_msg="Unknown option: $1 (supported: --${long_opts//,/, --})"
+        HELP=1
+        ERR=1
+        break
+        ;;
+    esac
+  done
+
+  readonly account_id zone_id token
+  return "${ERR}"
+}
+
 # Print command usage and available options to stdout.
 # @param none
 help () {
@@ -303,4 +323,4 @@ Example:
 EOF
 }
 
-main
+main "$@"
