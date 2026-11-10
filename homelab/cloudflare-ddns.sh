@@ -233,7 +233,7 @@ ipv () {
 
   local ip
   local trace_url="https://${cf_dns}/cdn-cgi/trace"
-  if ! ip=$(curl -fsS -"${version}" --max-time 10 "${trace_url}" 2>/dev/null \
+  if ! ip=$(curl -fsS -${version} --max-time 10 "${trace_url}" 2>/dev/null \
     | awk -F= '/^ip=/{print $2}'); then
     log_error "Failed to fetch public IPv${version} address."
     return 1
